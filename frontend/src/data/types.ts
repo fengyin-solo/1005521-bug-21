@@ -30,6 +30,8 @@ export type PageResult = {
 export type ActionResult = {
   ok: boolean
   message: string
+  /** 非阻断性提示，例如旧版取值已折算为现行标准值。 */
+  warnings?: string[]
 }
 
 export type OverviewResult = {

@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h2>清洁验证管理</h2>
-        <p class="page-desc">维护清洁验证记录，围绕验证编号、设备名称、清洁规程、取样点做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护清洁验证记录，围绕验证编号、设备名称、清洁规程、取样点做登记、筛选与状态流转；关闭的偏差会回写到本台账，纠正措施始终与偏差台账同一份。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记清洁验证记录</button>
@@ -37,13 +37,15 @@
       <thead>
         <tr>
           <th v-for="column in columns" :key="column">{{ column }}</th>
+          <th>偏差纠正措施</th>
           <th>当前状态</th>
           <th>可执行动作</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ displayCell(row, column) }}</td>
+          <td>{{ row.偏差纠正措施 || '—' }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
             <button
@@ -58,7 +60,7 @@
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td :colspan="columns.length + 2" class="empty-state">暂无清洁验证数据，可先登记清洁验证记录</td>
+          <td :colspan="columns.length + 3" class="empty-state">暂无清洁验证数据，可先登记清洁验证记录</td>
         </tr>
       </tbody>
     </table>
@@ -75,6 +77,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import {
   downloadEntries,
+  linkedDeviationCorrectiveAction,
   listEntries,
   moduleMeta,
   runAction as applyAction,
@@ -82,7 +85,7 @@ import {
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('cleanvalidate')
-const columns = ["验证编号", "设备名称", "清洁规程", "取样点", "残留限度", "检测结果", "验证人", "验证状态"]
+const columns = ["验证编号", "设备名称", "清洁规程", "取样点", "残留限度", "检测结果", "关联偏差编号", "验证人", "验证状态"]
 const actions = ["提交验证", "确认验证", "判定失败"]
 const statuses = ["待验证", "验证中", "已验证", "验证失败"]
 const stats = [{"label": "待验证设备", "value": 0}, {"label": "验证中设备", "value": 0}, {"label": "已验证设备", "value": 0}]
@@ -92,6 +95,14 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+
+function displayCell(row: EntryRow, column: string): string {
+  if (column === '验证状态') {
+    return String(row.status ?? '—')
+  }
+  const value = row[column]
+  return value === undefined || value === '' ? '—' : String(value)
+}
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
@@ -126,7 +137,15 @@ function reload() {
   errorMessage.value = ''
   try {
     const payload = listEntries(meta.key, filters.value)
-    rows.value = payload.items
+    // 纠正措施不另存：始终按关联偏差编号回偏差台账取同一份，两处读出的值一致。
+    rows.value = payload.items.map((row) => {
+      const linkCode = String(row.关联偏差编号 ?? '').trim()
+      if (!linkCode) {
+        return { ...row, 偏差纠正措施: '' }
+      }
+      const linked = linkedDeviationCorrectiveAction(linkCode)
+      return { ...row, 偏差纠正措施: linked ? linked.corrective : '' }
+    })
     total.value = payload.total
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '清洁验证列表读取失败'
