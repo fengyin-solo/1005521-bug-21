@@ -82,7 +82,7 @@ import {
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('cleanvalidate')
-const columns = ["验证编号", "设备名称", "清洁规程", "取样点", "残留限度", "检测结果", "验证人", "验证状态"]
+const columns = ["验证编号", "设备名称", "清洁规程", "取样点", "残留限度", "检测结果", "关联偏差编号", "偏差纠正措施", "偏差处理结果", "验证人", "验证状态"]
 const actions = ["提交验证", "确认验证", "判定失败"]
 const statuses = ["待验证", "验证中", "已验证", "验证失败"]
 const stats = [{"label": "待验证设备", "value": 0}, {"label": "验证中设备", "value": 0}, {"label": "已验证设备", "value": 0}]
